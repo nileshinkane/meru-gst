@@ -1,5 +1,16 @@
 # MERUGST Modernization
 
+## Why
+
+My father created the original MERUGST application in 1991. He continued to
+update it over the years, and it kept running faithfully until his Windows XP PC
+finally gave up.
+
+The application was built as a 16-bit program, which modern Windows versions
+such as Windows 11 no longer support. This project is my effort to port the app
+to modern technology while keeping the application and its user experience the
+same for him.
+
 This repository contains the untouched legacy FoxBASE/FoxPro files plus a new
 Node.js workspace for rebuilding the application as a modern terminal app.
 
@@ -7,6 +18,8 @@ Node.js workspace for rebuilding the application as a modern terminal app.
 
 - `apps/cli` - TypeScript CLI/TUI application.
 - legacy `.PRG`, `.DBF`, `.IDX`, `.PRN` files remain at the repository root.
+- `legacy/` is intentionally not included in this repository because it contains
+  the original application data.
 
 ## Commands
 
