@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+
+process.env.MERU_CLI_MODE = process.env.MERU_CLI_MODE ?? "prod";
+await import("../dist/index.js");

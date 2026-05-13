@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Private legacy and generated runtime data.
+legacy/
+db/
+data/private/
+
+# FoxBASE/FoxPro data files. Keep real business data local only.
+*.[Dd][Bb][Ff]
+*.[Cc][Dd][Xx]
+*.[Nn][Dd][Xx]
+*.[Nn][Tt][Xx]
+*.[Ii][Dd][Xx]
+*.[Dd][Bb][Tt]
+*.[Ff][Pp][Tt]
+*.[Bb][Aa][Kk]
+
+# Future fake fixtures for tests are allowed.
+!apps/cli/test/fixtures/
+!apps/cli/test/fixtures/**

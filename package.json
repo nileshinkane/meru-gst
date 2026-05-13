@@ -1,0 +1,18 @@
+{
+  "name": "merugst-modernization",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Modern Node.js tooling for the legacy MERUGST FoxBASE/FoxPro application.",
+  "packageManager": "pnpm@10.18.2",
+  "scripts": {
+    "build": "pnpm --filter @meru/cli build",
+    "dev": "pnpm --filter @meru/cli dev",
+    "dev:local": "pnpm --filter @meru/cli dev:local",
+    "meru": "node apps/cli/bin/meru",
+    "meru-local": "node apps/cli/bin/meru-local",
+    "start": "pnpm --filter @meru/cli start",
+    "start:local": "pnpm --filter @meru/cli start:local",
+    "typecheck": "pnpm --filter @meru/cli typecheck",
+    "test": "pnpm --filter @meru/cli test"
+  }
+}
