@@ -6,13 +6,18 @@
   "packageManager": "pnpm@10.18.2",
   "scripts": {
     "build": "pnpm --filter @meru/cli build",
+    "build:desktop": "pnpm --filter @meru/desktop tauri:build",
     "dev": "pnpm --filter @meru/cli dev",
+    "dev:desktop": "pnpm --filter @meru/desktop tauri:dev",
+    "dev:desktop:web": "pnpm --filter @meru/desktop dev",
     "dev:local": "pnpm --filter @meru/cli dev:local",
     "meru": "node apps/cli/bin/meru",
     "meru-local": "node apps/cli/bin/meru-local",
     "start": "pnpm --filter @meru/cli start",
     "start:local": "pnpm --filter @meru/cli start:local",
     "typecheck": "pnpm --filter @meru/cli typecheck",
+    "typecheck:desktop": "pnpm --filter @meru/desktop typecheck",
+    "typecheck:ui": "pnpm --filter @meru/ui typecheck",
     "test": "pnpm --filter @meru/cli test"
   }
 }

@@ -14,12 +14,40 @@ same for him.
 This repository contains the untouched legacy FoxBASE/FoxPro files plus a new
 Node.js workspace for rebuilding the application as a modern terminal app.
 
+For detailed context, data mapping, completed tasks, and the step-by-step porting
+plan, read [MERUGST_PORTING_GUIDE.md](MERUGST_PORTING_GUIDE.md) before changing
+code.
+
 ## Layout
 
 - `apps/cli` - TypeScript CLI/TUI application.
-- legacy `.PRG`, `.DBF`, `.IDX`, `.PRN` files remain at the repository root.
-- `legacy/` is intentionally not included in this repository because it contains
-  the original application data.
+- `legacy/` - original FoxBASE/FoxPro `.PRG`, `.DBF`, `.IDX`, `.PRN`, `.SPL`,
+  and related files when present locally. Treat this directory as read-only
+  source data unless a user explicitly asks for a legacy-file operation. Some
+  clean clones may omit it because it can contain private operational data.
+
+## Current Status
+
+Done:
+
+- [x] TypeScript CLI workspace exists.
+- [x] `meru-local` and `meru` command aliases exist.
+- [x] Read-only DBF list/schema/rows commands exist.
+- [x] Read-only interactive DBF browser exists.
+- [x] DBF viewer supports field selection, filters, JSON output, encoding, loose
+  mode, and deleted-record inclusion.
+- [x] Smoke tests exist for command registration.
+
+Not done yet:
+
+- [ ] SQLite schema and DBF import.
+- [ ] Data migration for customers, medicines, invoice headers, invoice lines,
+  payments, stock, and reports.
+- [ ] Terminal business app for full-screen invoice creation, invoice
+  editing/modification, payment, and reporting.
+- [ ] GST invoice calculation and printing.
+- [ ] Editable `print.spl` workflow with a vim-like editor.
+- [ ] Windows 10/11 and macOS packaging.
 
 ## Commands
 
