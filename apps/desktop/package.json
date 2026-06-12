@@ -15,6 +15,7 @@
   "dependencies": {
     "@meru/ui": "workspace:*",
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-sql": "^2.4.0",
     "lucide-react": "^1.18.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
