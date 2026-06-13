@@ -54,6 +54,8 @@ export async function resetAndSeedDatabase(sql: string) {
   } finally {
     await database.execute("PRAGMA foreign_keys = ON");
   }
+
+  await ensureCurrentOrgSeed(database);
 }
 
 export type SearchEntityType = "customer" | "medicine" | "invoice";
@@ -130,6 +132,25 @@ export type ManufacturerOption = {
   code: string;
 };
 
+export type CurrentOrgProfile = {
+  company_id: string | null;
+  org_owner_first_name: string;
+  org_owner_last_name: string;
+  name: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  phone: string;
+  gstin: string;
+  drug_license: string;
+  fssai_no: string;
+  jurisdiction: string;
+  terms: string;
+  updated_at: string;
+};
+
 export type CustomerListRow = {
   id: string;
   name: string;
@@ -175,6 +196,187 @@ export type MedicineWriteInput = Omit<
   MedicineListRow,
   "batch_count" | "manufacturer_code" | "manufacturer_name" | "updated_at"
 >;
+
+export async function getCurrentOrgProfile(): Promise<CurrentOrgProfile> {
+  const database = await getDatabase();
+  await ensureCurrentOrgSeed(database);
+
+  const currentOrg = await database.select<CurrentOrgProfile[]>(
+    `
+      SELECT
+        current_org.company_id,
+        current_org.org_owner_first_name,
+        current_org.org_owner_last_name,
+        coalesce(companies.name, '') AS name,
+        coalesce(companies.address_line1, '') AS address_line1,
+        coalesce(companies.address_line2, '') AS address_line2,
+        coalesce(companies.city, '') AS city,
+        coalesce(companies.state, '') AS state,
+        coalesce(companies.pincode, '') AS pincode,
+        coalesce(companies.phone, '') AS phone,
+        coalesce(companies.gstin, '') AS gstin,
+        coalesce(companies.drug_license, '') AS drug_license,
+        coalesce(companies.fssai_no, '') AS fssai_no,
+        coalesce(companies.jurisdiction, '') AS jurisdiction,
+        coalesce(companies.terms, '') AS terms,
+        current_org.updated_at
+      FROM current_org
+      LEFT JOIN companies ON companies.id = current_org.company_id
+      WHERE current_org.id = 'current'
+      LIMIT 1
+    `,
+  );
+
+  if (currentOrg[0]) return currentOrg[0];
+
+  const defaultCompany = await database.select<CurrentOrgProfile[]>(
+    `
+      SELECT
+        companies.id AS company_id,
+        '' AS org_owner_first_name,
+        '' AS org_owner_last_name,
+        companies.name,
+        companies.address_line1,
+        companies.address_line2,
+        companies.city,
+        companies.state,
+        companies.pincode,
+        companies.phone,
+        companies.gstin,
+        companies.drug_license,
+        companies.fssai_no,
+        companies.jurisdiction,
+        companies.terms,
+        companies.updated_at
+      FROM companies
+      ORDER BY
+        CASE
+          WHEN companies.id = (
+            SELECT value
+            FROM app_settings
+            WHERE key = 'invoice.default_company_id'
+          )
+          THEN 0
+          ELSE 1
+        END,
+        companies.name COLLATE NOCASE
+      LIMIT 1
+    `,
+  );
+
+  return defaultCompany[0] ?? createEmptyCurrentOrgProfile();
+}
+
+export async function upsertCurrentOrgProfile(input: CurrentOrgProfile) {
+  const database = await getDatabase();
+  const normalized = normalizeCurrentOrgProfile(input);
+  const hasCompanyDetails = [
+    normalized.name,
+    normalized.address_line1,
+    normalized.address_line2,
+    normalized.city,
+    normalized.state,
+    normalized.pincode,
+    normalized.phone,
+    normalized.gstin,
+    normalized.drug_license,
+    normalized.fssai_no,
+    normalized.jurisdiction,
+    normalized.terms,
+  ].some(Boolean);
+  let companyId = normalized.company_id || null;
+
+  if (hasCompanyDetails && !normalized.name) {
+    throw new Error("Organization name is required before saving company details.");
+  }
+
+  if (hasCompanyDetails) {
+    companyId ??= createEntityId("company", normalized.name);
+
+    await database.execute(
+      `
+        INSERT INTO companies (
+          id,
+          name,
+          address_line1,
+          address_line2,
+          city,
+          state,
+          pincode,
+          phone,
+          gstin,
+          drug_license,
+          fssai_no,
+          jurisdiction,
+          terms
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          name = excluded.name,
+          address_line1 = excluded.address_line1,
+          address_line2 = excluded.address_line2,
+          city = excluded.city,
+          state = excluded.state,
+          pincode = excluded.pincode,
+          phone = excluded.phone,
+          gstin = excluded.gstin,
+          drug_license = excluded.drug_license,
+          fssai_no = excluded.fssai_no,
+          jurisdiction = excluded.jurisdiction,
+          terms = excluded.terms,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [
+        companyId,
+        normalized.name,
+        normalized.address_line1,
+        normalized.address_line2,
+        normalized.city,
+        normalized.state,
+        normalized.pincode,
+        normalized.phone,
+        normalized.gstin,
+        normalized.drug_license,
+        normalized.fssai_no,
+        normalized.jurisdiction,
+        normalized.terms,
+      ],
+    );
+
+    await database.execute(
+      `
+        INSERT INTO app_settings (key, value)
+        VALUES ('invoice.default_company_id', ?)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [companyId],
+    );
+  }
+
+  await database.execute(
+    `
+      INSERT INTO current_org (
+        id,
+        company_id,
+        org_owner_first_name,
+        org_owner_last_name
+      ) VALUES ('current', ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        company_id = excluded.company_id,
+        org_owner_first_name = excluded.org_owner_first_name,
+        org_owner_last_name = excluded.org_owner_last_name,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [
+      companyId,
+      normalized.org_owner_first_name,
+      normalized.org_owner_last_name,
+    ],
+  );
+
+  return companyId;
+}
 
 export async function listCustomers() {
   const database = await getDatabase();
@@ -379,6 +581,50 @@ function createEntityId(prefix: string, name: string) {
   return `${prefix}-${slug}-${unique}`;
 }
 
+function createEmptyCurrentOrgProfile(): CurrentOrgProfile {
+  return {
+    company_id: null,
+    org_owner_first_name: "",
+    org_owner_last_name: "",
+    name: "",
+    address_line1: "",
+    address_line2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    phone: "",
+    gstin: "",
+    drug_license: "",
+    fssai_no: "",
+    jurisdiction: "",
+    terms: "",
+    updated_at: "",
+  };
+}
+
+function normalizeCurrentOrgProfile(
+  profile: CurrentOrgProfile,
+): CurrentOrgProfile {
+  return {
+    company_id: profile.company_id?.trim() || null,
+    org_owner_first_name: profile.org_owner_first_name.trim(),
+    org_owner_last_name: profile.org_owner_last_name.trim(),
+    name: profile.name.trim(),
+    address_line1: profile.address_line1.trim(),
+    address_line2: profile.address_line2.trim(),
+    city: profile.city.trim(),
+    state: profile.state.trim(),
+    pincode: profile.pincode.trim(),
+    phone: profile.phone.trim(),
+    gstin: profile.gstin.trim(),
+    drug_license: profile.drug_license.trim(),
+    fssai_no: profile.fssai_no.trim(),
+    jurisdiction: profile.jurisdiction.trim(),
+    terms: profile.terms.trim(),
+    updated_at: profile.updated_at,
+  };
+}
+
 const resettableTables = [
   "invoice_tax_lines",
   "invoice_line_items",
@@ -388,10 +634,42 @@ const resettableTables = [
   "manufacturers",
   "customers",
   "transporters",
+  "current_org",
   "companies",
   "invoice_print_settings",
   "app_settings",
 ];
+
+const currentOrgSchemaSql = `
+  CREATE TABLE IF NOT EXISTS current_org (
+    id TEXT PRIMARY KEY NOT NULL CHECK (id = 'current'),
+    company_id TEXT REFERENCES companies(id) ON DELETE SET NULL,
+    org_owner_first_name TEXT NOT NULL DEFAULT '',
+    org_owner_last_name TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+
+const defaultCurrentOrgProfile: CurrentOrgProfile = {
+  company_id: "company-meru",
+  org_owner_first_name: "Satishchandra",
+  org_owner_last_name: "Inkane",
+  name: "MERU PHARMACEUTICALS",
+  address_line1: "76, Ayodhya Nagar",
+  address_line2: "",
+  city: "NAGPUR",
+  state: "Maharashtra",
+  pincode: "440024",
+  phone: "(0712) 744708",
+  gstin: "27AACPI7993N1ZY",
+  drug_license: "20B-255760/2018, 21B-255761/2018",
+  fssai_no: "21518260001528",
+  jurisdiction: "NAGPUR JURISDICTION",
+  terms:
+    "All goods sold on non-returnable basis. 24% interest charged after due date.",
+  updated_at: "",
+};
 
 async function ensureDatabaseSchema(database: Database) {
   const tables = await database.select<Array<{ name: string }>>(
@@ -404,6 +682,8 @@ async function ensureDatabaseSchema(database: Database) {
   );
 
   if (tables.length > 0) {
+    await ensureCurrentOrgTable(database);
+    await ensureCurrentOrgSeed(database);
     return;
   }
 
@@ -422,6 +702,127 @@ async function ensureDatabaseSchema(database: Database) {
   } finally {
     await database.execute("PRAGMA foreign_keys = ON");
   }
+
+  await ensureCurrentOrgTable(database);
+  await ensureCurrentOrgSeed(database);
+}
+
+async function ensureCurrentOrgTable(database: Database) {
+  await database.execute(currentOrgSchemaSql);
+}
+
+async function ensureCurrentOrgSeed(database: Database) {
+  await ensureCurrentOrgTable(database);
+
+  const rows = await database.select<
+    Array<{
+      org_owner_first_name: string;
+      org_owner_last_name: string;
+      organization_name: string;
+    }>
+  >(
+    `
+      SELECT
+        current_org.org_owner_first_name,
+        current_org.org_owner_last_name,
+        coalesce(companies.name, '') AS organization_name
+      FROM current_org
+      LEFT JOIN companies ON companies.id = current_org.company_id
+      WHERE current_org.id = 'current'
+      LIMIT 1
+    `,
+  );
+  const current = rows[0];
+  const needsSeed =
+    !current?.org_owner_first_name.trim() ||
+    !current.org_owner_last_name.trim() ||
+    !current.organization_name.trim();
+
+  if (!needsSeed) return;
+
+  await seedDefaultCurrentOrg(database);
+}
+
+async function seedDefaultCurrentOrg(database: Database) {
+  const profile = defaultCurrentOrgProfile;
+
+  await database.execute("DELETE FROM current_org");
+
+  await database.execute(
+    `
+      INSERT INTO companies (
+        id,
+        name,
+        address_line1,
+        address_line2,
+        city,
+        state,
+        pincode,
+        phone,
+        gstin,
+        drug_license,
+        fssai_no,
+        jurisdiction,
+        terms
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        address_line1 = excluded.address_line1,
+        address_line2 = excluded.address_line2,
+        city = excluded.city,
+        state = excluded.state,
+        pincode = excluded.pincode,
+        phone = excluded.phone,
+        gstin = excluded.gstin,
+        drug_license = excluded.drug_license,
+        fssai_no = excluded.fssai_no,
+        jurisdiction = excluded.jurisdiction,
+        terms = excluded.terms,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [
+      profile.company_id,
+      profile.name,
+      profile.address_line1,
+      profile.address_line2,
+      profile.city,
+      profile.state,
+      profile.pincode,
+      profile.phone,
+      profile.gstin,
+      profile.drug_license,
+      profile.fssai_no,
+      profile.jurisdiction,
+      profile.terms,
+    ],
+  );
+
+  await database.execute(
+    `
+      INSERT INTO app_settings (key, value)
+      VALUES ('invoice.default_company_id', ?)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [profile.company_id],
+  );
+
+  await database.execute(
+    `
+      INSERT INTO current_org (
+        id,
+        company_id,
+        org_owner_first_name,
+        org_owner_last_name
+      ) VALUES ('current', ?, ?, ?)
+    `,
+    [
+      profile.company_id,
+      profile.org_owner_first_name,
+      profile.org_owner_last_name,
+    ],
+  );
 }
 
 function assertTauriDatabaseAvailable() {
