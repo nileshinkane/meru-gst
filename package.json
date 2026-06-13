@@ -13,6 +13,8 @@
     "dev:local": "pnpm --filter @meru/cli dev:local",
     "meru": "node apps/cli/bin/meru",
     "meru-local": "node apps/cli/bin/meru-local",
+    "release:privacy-check": "node scripts/check-release-privacy.mjs",
+    "sync:desktop-version": "node scripts/sync-desktop-version.mjs",
     "start": "pnpm --filter @meru/cli start",
     "start:local": "pnpm --filter @meru/cli start:local",
     "typecheck": "pnpm --filter @meru/cli typecheck",

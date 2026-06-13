@@ -1,6 +1,7 @@
 import {
   Calendar as CalendarIcon,
   Database,
+  Download,
   FileDown,
   FileText,
   Home,
@@ -8,13 +9,14 @@ import {
   Pill,
   Plus,
   Printer,
+  RefreshCw,
   Settings,
   Sun,
   Trash2,
   Users,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@meru/ui/components/button";
 import { Calendar } from "@meru/ui/components/calendar";
@@ -27,6 +29,12 @@ import {
 } from "@meru/ui/components/popover";
 import { cn } from "@meru/ui/lib/utils";
 
+import {
+  checkForAppUpdate,
+  initialAppUpdateState,
+  installAppUpdate,
+  type AppUpdateState,
+} from "@/lib/app-updates";
 import {
   calculateLineAmount,
   calculateTotals,
@@ -63,6 +71,7 @@ const numericLineFields = new Set<keyof InvoiceLineItem>([
 const invoiceDatePattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
 const invoiceDateStartMonth = new Date(2000, 0, 1);
 const invoiceDateEndMonth = new Date(2100, 11, 31);
+const updateCheckThrottleMs = 60_000;
 
 const navItems: Array<{
   page: Page;
@@ -91,6 +100,7 @@ function App() {
   const [invoice, setInvoice] = useState(createDefaultInvoice);
   const [characterSet, setCharacterSet] = useState<PrintCharacterSet>("box");
   const [copies, setCopies] = useState(2);
+  const { state: updateState, installUpdate } = useAppUpdates();
 
   const totals = useMemo(() => calculateTotals(invoice), [invoice]);
   const printText = useMemo(
@@ -190,18 +200,26 @@ function App() {
             <h1 className="text-base font-semibold">{pageTitle}</h1>
             <p className="text-xs text-muted-foreground">MERU GST desktop</p>
           </div>
-          <button
-            type="button"
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            className="inline-flex size-9 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            onClick={() => setIsDark((current) => !current)}
-          >
-            {isDark ? (
-              <Sun className="size-4" aria-hidden="true" />
-            ) : (
-              <Moon className="size-4" aria-hidden="true" />
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <AppUpdateButton
+              updateState={updateState}
+              installUpdate={installUpdate}
+            />
+            <button
+              type="button"
+              aria-label={
+                isDark ? "Switch to light mode" : "Switch to dark mode"
+              }
+              className="inline-flex size-9 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={() => setIsDark((current) => !current)}
+            >
+              {isDark ? (
+                <Sun className="size-4" aria-hidden="true" />
+              ) : (
+                <Moon className="size-4" aria-hidden="true" />
+              )}
+            </button>
+          </div>
         </header>
 
         <div className="p-5">
@@ -239,6 +257,197 @@ function App() {
         </div>
       </section>
     </main>
+  );
+}
+
+function useAppUpdates() {
+  const [state, setState] = useState<AppUpdateState>(initialAppUpdateState);
+  const pendingUpdateRef =
+    useRef<Awaited<ReturnType<typeof checkForAppUpdate>>>(null);
+  const checkingRef = useRef(false);
+  const lastCheckAtRef = useRef(0);
+
+  const checkForUpdates = useCallback(async (force = false) => {
+    const now = Date.now();
+
+    if (checkingRef.current) {
+      return;
+    }
+
+    if (pendingUpdateRef.current) {
+      return;
+    }
+
+    if (!force && now - lastCheckAtRef.current < updateCheckThrottleMs) {
+      return;
+    }
+
+    checkingRef.current = true;
+    lastCheckAtRef.current = now;
+    setState((current) =>
+      current.status === "downloading"
+        ? current
+        : { ...current, status: "checking", error: undefined },
+    );
+
+    try {
+      const update = await checkForAppUpdate();
+      pendingUpdateRef.current = update;
+
+      if (update) {
+        setState({
+          status: "available",
+          currentVersion: update.currentVersion,
+          version: update.version,
+          body: update.body,
+          downloadedBytes: 0,
+        });
+      } else {
+        setState({
+          status: "current",
+          downloadedBytes: 0,
+        });
+      }
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        status: "error",
+        error: getErrorMessage(error),
+      }));
+    } finally {
+      checkingRef.current = false;
+    }
+  }, []);
+
+  const installUpdate = useCallback(async () => {
+    const update = pendingUpdateRef.current;
+
+    if (!update) {
+      await checkForUpdates(true);
+      return;
+    }
+
+    let downloadedBytes = 0;
+    setState((current) => ({
+      ...current,
+      status: "downloading",
+      downloadedBytes,
+      error: undefined,
+    }));
+
+    try {
+      await installAppUpdate(update, (event) => {
+        if (event.event === "Started") {
+          downloadedBytes = 0;
+          setState((current) => ({
+            ...current,
+            downloadedBytes,
+            contentLength: event.data.contentLength,
+          }));
+          return;
+        }
+
+        if (event.event === "Progress") {
+          downloadedBytes += event.data.chunkLength;
+          setState((current) => ({
+            ...current,
+            downloadedBytes,
+          }));
+          return;
+        }
+
+        setState((current) => ({
+          ...current,
+          downloadedBytes: current.contentLength ?? downloadedBytes,
+        }));
+      });
+
+      setState((current) => ({ ...current, status: "installed" }));
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        status: "available",
+        error: getErrorMessage(error),
+      }));
+    }
+  }, [checkForUpdates]);
+
+  useEffect(() => {
+    void checkForUpdates(true);
+
+    const handleInteraction = () => {
+      void checkForUpdates();
+    };
+
+    window.addEventListener("pointerdown", handleInteraction, true);
+    window.addEventListener("keydown", handleInteraction, true);
+    window.addEventListener("focus", handleInteraction);
+
+    return () => {
+      window.removeEventListener("pointerdown", handleInteraction, true);
+      window.removeEventListener("keydown", handleInteraction, true);
+      window.removeEventListener("focus", handleInteraction);
+    };
+  }, [checkForUpdates]);
+
+  return { state, installUpdate };
+}
+
+function AppUpdateButton({
+  updateState,
+  installUpdate,
+}: {
+  updateState: AppUpdateState;
+  installUpdate: () => void;
+}) {
+  if (
+    updateState.status !== "available" &&
+    updateState.status !== "downloading" &&
+    updateState.status !== "installed"
+  ) {
+    return null;
+  }
+
+  const isDownloading = updateState.status === "downloading";
+  const isInstalled = updateState.status === "installed";
+  const progress =
+    isDownloading && updateState.contentLength
+      ? Math.min(
+          99,
+          Math.round(
+            (updateState.downloadedBytes / updateState.contentLength) * 100,
+          ),
+        )
+      : undefined;
+  const label = isInstalled
+    ? "Restarting"
+    : isDownloading
+      ? progress
+        ? `Updating ${progress}%`
+        : "Updating"
+      : "Update";
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-9 px-3"
+      title={
+        updateState.version
+          ? `Install MERU GST ${updateState.version}`
+          : undefined
+      }
+      disabled={isDownloading || isInstalled}
+      onClick={installUpdate}
+    >
+      {isDownloading || isInstalled ? (
+        <RefreshCw className="size-4 animate-spin" aria-hidden="true" />
+      ) : (
+        <Download className="size-4" aria-hidden="true" />
+      )}
+      {label}
+    </Button>
   );
 }
 
@@ -894,6 +1103,10 @@ function SegmentedButton({
 function numberValue(value: string) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export default App;

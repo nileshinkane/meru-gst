@@ -24,9 +24,20 @@
       "csp": null
     }
   },
-  "plugins": {},
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg5NEFFQzg3NjAzRUNBM0MKUldROHlqNWdoK3hLaVlZS0x6dHFDTmFsV1ZxMGtFLys0U1NDSEtLVGo0L3BnVGZ2NlU4aDNWLzEK",
+      "endpoints": [
+        "https://github.com/nileshinkane/meru-gst/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
       "icons/32x32.png",

@@ -6,7 +6,9 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "process:allow-restart",
     "sql:default",
-    "sql:allow-execute"
+    "sql:allow-execute",
+    "updater:default"
   ]
 }

@@ -1,0 +1,109 @@
+name: Release Desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: Keep the GitHub release as a draft
+        required: true
+        type: boolean
+        default: false
+      prerelease:
+        description: Mark the GitHub release as a prerelease
+        required: true
+        type: boolean
+        default: false
+      release_notes:
+        description: Release notes
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            runner: macos-latest
+            args: --target aarch64-apple-darwin
+          - name: macOS Intel
+            runner: macos-latest
+            args: --target x86_64-apple-darwin
+          - name: Windows
+            runner: windows-latest
+            args: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ startsWith(matrix.runner, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate release inputs
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY secret is required to sign updater artifacts."
+            exit 1
+          fi
+
+      - name: Verify desktop version sync
+        shell: bash
+        run: |
+          pnpm sync:desktop-version
+          git diff --exit-code apps/desktop/src-tauri/tauri.conf.json apps/desktop/src-tauri/Cargo.toml
+
+      - name: Check release privacy
+        run: pnpm release:privacy-check
+
+      - name: Typecheck desktop
+        run: pnpm --filter @meru/desktop typecheck
+
+      - name: Build and publish desktop release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
+        with:
+          projectPath: apps/desktop
+          tagName: meru-gst-v__VERSION__
+          releaseName: MERU GST v__VERSION__
+          releaseBody: ${{ inputs.release_notes || 'Signed MERU GST desktop release.' }}
+          releaseDraft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          args: ${{ matrix.args }}
+          updaterJsonPreferNsis: true
