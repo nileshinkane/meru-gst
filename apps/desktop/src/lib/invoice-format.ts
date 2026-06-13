@@ -174,7 +174,7 @@ export function formatInvoiceDocument(
   invoice: Invoice,
   options: { copies?: number; characterSet?: PrintCharacterSet } = {},
 ) {
-  const copies = options.copies ?? 2;
+  const copies = options.copies ?? 1;
   const output: string[] = [];
 
   for (let copyIndex = 0; copyIndex < copies; copyIndex += 1) {
