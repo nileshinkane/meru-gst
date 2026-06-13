@@ -1,6 +1,6 @@
 [package]
 name = "meru-gst-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "MERU GST desktop application"
 authors = ["MERU GST"]
 edition = "2021"
