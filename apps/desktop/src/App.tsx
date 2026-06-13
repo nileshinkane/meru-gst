@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 
+import { AppErrorBoundary } from "@/components/app-error-boundary";
 import { AppLayout } from "@/components/app-layout";
 import { LightModeEnforcer } from "@/components/light-mode-enforcer";
 import { Toaster } from "@/components/sonner";
@@ -38,21 +39,23 @@ const SettingsPage = lazy(() =>
 
 function App() {
   return (
-    <HashRouter>
-      <LightModeEnforcer />
-      <Toaster />
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="customers" element={<CustomersPage />} />
-          <Route path="invoices" element={<InvoicesPage />} />
-          <Route path="invoices/new" element={<InvoiceCreatePage />} />
-          <Route path="medicines" element={<MedicinesPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </HashRouter>
+    <AppErrorBoundary>
+      <HashRouter>
+        <LightModeEnforcer />
+        <Toaster />
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="customers" element={<CustomersPage />} />
+            <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="invoices/new" element={<InvoiceCreatePage />} />
+            <Route path="medicines" element={<MedicinesPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </HashRouter>
+    </AppErrorBoundary>
   );
 }
 

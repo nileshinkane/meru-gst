@@ -11,6 +11,7 @@ type Greeting = {
 
 export function HomePage() {
   const [clock, setClock] = useState(() => new Date());
+  const [greetingSeed] = useState(() => Math.random());
   const [ownerName, setOwnerName] = useState("");
 
   useEffect(() => {
@@ -43,8 +44,8 @@ export function HomePage() {
   }, []);
 
   const greeting = useMemo(
-    () => createGreeting(clock.getHours(), ownerName),
-    [clock, ownerName],
+    () => createGreeting(clock.getHours(), ownerName, greetingSeed),
+    [clock, greetingSeed, ownerName],
   );
   const timeLabel = clock.toLocaleTimeString([], {
     hour: "2-digit",
@@ -110,44 +111,112 @@ export function HomePage() {
   );
 }
 
-function createGreeting(hour: number, ownerName: string): Greeting {
+function createGreeting(
+  hour: number,
+  ownerName: string,
+  greetingSeed: number,
+): Greeting {
   const name = ownerName.trim() || "there";
+  const bucket = getGreetingBucket(hour);
+  const titles = greetingTitles[bucket];
+  const subtitles = greetingSubtitles[bucket];
+  const title = pickFromSeed(titles, greetingSeed);
+  const subtitle = pickFromSeed(subtitles, greetingSeed * 7.13 + 0.31);
 
+  return {
+    title: title.replace("{name}", name),
+    subtitle,
+  };
+}
+
+type GreetingBucket = "morning" | "midday" | "afternoon" | "evening" | "late";
+
+function getGreetingBucket(hour: number): GreetingBucket {
   if (hour >= 5 && hour < 10) {
-    return {
-      title: `Good morning, ${name}`,
-      subtitle:
-        "A clean start for billing, collections, and the first orders of the day.",
-    };
+    return "morning";
   }
 
   if (hour >= 10 && hour < 14) {
-    return {
-      title: `Hope the day is moving well, ${name}`,
-      subtitle:
-        "Keep invoices, customers, and stock moving while the counter is active.",
-    };
+    return "midday";
   }
 
   if (hour >= 14 && hour < 17) {
-    return {
-      title: `Good afternoon, ${name}`,
-      subtitle:
-        "A steady window to close pending bills and keep GST details tidy.",
-    };
+    return "afternoon";
   }
 
   if (hour >= 17 && hour < 21) {
-    return {
-      title: `Good evening, ${name}`,
-      subtitle:
-        "Wrap up today's invoices with clean totals and fewer loose ends.",
-    };
+    return "evening";
   }
 
-  return {
-    title: `Working late, ${name}`,
-    subtitle:
-      "Finish the urgent bill, keep the records organized, and leave the rest ready.",
-  };
+  return "late";
 }
+
+function pickFromSeed(options: string[], seed: number) {
+  return options[Math.floor(seed * options.length) % options.length];
+}
+
+const greetingTitles: Record<GreetingBucket, string[]> = {
+  morning: [
+    "Good morning, {name}",
+    "Fresh start, {name}",
+    "Morning, {name}. Ready for the first bills?",
+    "A new billing day begins, {name}",
+  ],
+  midday: [
+    "Hope the day is moving well, {name}",
+    "Steady going, {name}",
+    "Midday momentum, {name}",
+    "The counter is active, {name}",
+  ],
+  afternoon: [
+    "Good afternoon, {name}",
+    "Afternoon check-in, {name}",
+    "Keep the pace clean, {name}",
+    "A good window to close bills, {name}",
+  ],
+  evening: [
+    "Good evening, {name}",
+    "Time to wrap the day, {name}",
+    "Evening billing mode, {name}",
+    "Close the day cleanly, {name}",
+  ],
+  late: [
+    "Working late, {name}",
+    "Late shift, {name}",
+    "One last pass, {name}",
+    "Still at it, {name}",
+  ],
+};
+
+const greetingSubtitles: Record<GreetingBucket, string[]> = {
+  morning: [
+    "A clean start for billing, collections, and the first orders of the day.",
+    "Set up the day with tidy invoices and fewer loose ends later.",
+    "Start with the urgent bills and let the routine work fall into place.",
+    "A focused morning is a good time to keep records clean from the first sale.",
+  ],
+  midday: [
+    "Keep invoices, customers, and stock moving while the counter is active.",
+    "Handle the busy stretch with clear totals and clean GST details.",
+    "A good moment to turn active orders into finished invoices.",
+    "Keep the billing flow steady while the day is at full speed.",
+  ],
+  afternoon: [
+    "A steady window to close pending bills and keep GST details tidy.",
+    "Use the quieter stretch to finish entries before the evening rush.",
+    "Review customer details, close drafts, and keep totals predictable.",
+    "A practical time to clear invoice work before the day starts winding down.",
+  ],
+  evening: [
+    "Wrap up today's invoices with clean totals and fewer loose ends.",
+    "Close the important bills now so tomorrow starts lighter.",
+    "Finish the day with customer, tax, and print details in order.",
+    "A final steady pass can keep the day's records clean.",
+  ],
+  late: [
+    "Finish the urgent bill, keep the records organized, and leave the rest ready.",
+    "Handle only what matters now and keep tomorrow's queue clear.",
+    "Close the last invoice carefully and leave the ledger in shape.",
+    "A quiet finish is a good time for careful totals and clean records.",
+  ],
+};

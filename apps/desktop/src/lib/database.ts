@@ -54,6 +54,8 @@ export async function resetAndSeedDatabase(sql: string) {
   } finally {
     await database.execute("PRAGMA foreign_keys = ON");
   }
+
+  await ensureCurrentOrgSeed(database);
 }
 
 export type SearchEntityType = "customer" | "medicine" | "invoice";
@@ -197,6 +199,7 @@ export type MedicineWriteInput = Omit<
 
 export async function getCurrentOrgProfile(): Promise<CurrentOrgProfile> {
   const database = await getDatabase();
+  await ensureCurrentOrgSeed(database);
 
   const currentOrg = await database.select<CurrentOrgProfile[]>(
     `
@@ -648,6 +651,26 @@ const currentOrgSchemaSql = `
   )
 `;
 
+const defaultCurrentOrgProfile: CurrentOrgProfile = {
+  company_id: "company-meru",
+  org_owner_first_name: "Satishchandra",
+  org_owner_last_name: "Inkane",
+  name: "MERU PHARMACEUTICALS",
+  address_line1: "76, Ayodhya Nagar",
+  address_line2: "",
+  city: "NAGPUR",
+  state: "Maharashtra",
+  pincode: "440024",
+  phone: "(0712) 744708",
+  gstin: "27AACPI7993N1ZY",
+  drug_license: "20B-255760/2018, 21B-255761/2018",
+  fssai_no: "21518260001528",
+  jurisdiction: "NAGPUR JURISDICTION",
+  terms:
+    "All goods sold on non-returnable basis. 24% interest charged after due date.",
+  updated_at: "",
+};
+
 async function ensureDatabaseSchema(database: Database) {
   const tables = await database.select<Array<{ name: string }>>(
     `
@@ -660,6 +683,7 @@ async function ensureDatabaseSchema(database: Database) {
 
   if (tables.length > 0) {
     await ensureCurrentOrgTable(database);
+    await ensureCurrentOrgSeed(database);
     return;
   }
 
@@ -680,10 +704,125 @@ async function ensureDatabaseSchema(database: Database) {
   }
 
   await ensureCurrentOrgTable(database);
+  await ensureCurrentOrgSeed(database);
 }
 
 async function ensureCurrentOrgTable(database: Database) {
   await database.execute(currentOrgSchemaSql);
+}
+
+async function ensureCurrentOrgSeed(database: Database) {
+  await ensureCurrentOrgTable(database);
+
+  const rows = await database.select<
+    Array<{
+      org_owner_first_name: string;
+      org_owner_last_name: string;
+      organization_name: string;
+    }>
+  >(
+    `
+      SELECT
+        current_org.org_owner_first_name,
+        current_org.org_owner_last_name,
+        coalesce(companies.name, '') AS organization_name
+      FROM current_org
+      LEFT JOIN companies ON companies.id = current_org.company_id
+      WHERE current_org.id = 'current'
+      LIMIT 1
+    `,
+  );
+  const current = rows[0];
+  const needsSeed =
+    !current?.org_owner_first_name.trim() ||
+    !current.org_owner_last_name.trim() ||
+    !current.organization_name.trim();
+
+  if (!needsSeed) return;
+
+  await seedDefaultCurrentOrg(database);
+}
+
+async function seedDefaultCurrentOrg(database: Database) {
+  const profile = defaultCurrentOrgProfile;
+
+  await database.execute("DELETE FROM current_org");
+
+  await database.execute(
+    `
+      INSERT INTO companies (
+        id,
+        name,
+        address_line1,
+        address_line2,
+        city,
+        state,
+        pincode,
+        phone,
+        gstin,
+        drug_license,
+        fssai_no,
+        jurisdiction,
+        terms
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        address_line1 = excluded.address_line1,
+        address_line2 = excluded.address_line2,
+        city = excluded.city,
+        state = excluded.state,
+        pincode = excluded.pincode,
+        phone = excluded.phone,
+        gstin = excluded.gstin,
+        drug_license = excluded.drug_license,
+        fssai_no = excluded.fssai_no,
+        jurisdiction = excluded.jurisdiction,
+        terms = excluded.terms,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [
+      profile.company_id,
+      profile.name,
+      profile.address_line1,
+      profile.address_line2,
+      profile.city,
+      profile.state,
+      profile.pincode,
+      profile.phone,
+      profile.gstin,
+      profile.drug_license,
+      profile.fssai_no,
+      profile.jurisdiction,
+      profile.terms,
+    ],
+  );
+
+  await database.execute(
+    `
+      INSERT INTO app_settings (key, value)
+      VALUES ('invoice.default_company_id', ?)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [profile.company_id],
+  );
+
+  await database.execute(
+    `
+      INSERT INTO current_org (
+        id,
+        company_id,
+        org_owner_first_name,
+        org_owner_last_name
+      ) VALUES ('current', ?, ?, ?)
+    `,
+    [
+      profile.company_id,
+      profile.org_owner_first_name,
+      profile.org_owner_last_name,
+    ],
+  );
 }
 
 function assertTauriDatabaseAvailable() {

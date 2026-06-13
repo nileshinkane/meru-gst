@@ -29,13 +29,13 @@ export function AppUpdateButton({
             (updateState.downloadedBytes / updateState.contentLength) * 100,
           ),
         )
-      : undefined;
+      : isInstalled
+        ? 100
+        : 0;
   const label = isInstalled
     ? "Restarting"
     : isDownloading
-      ? progress
-        ? `Updating ${progress}%`
-        : "Updating"
+      ? `${progress}%`
       : "Update";
 
   return (
@@ -43,21 +43,33 @@ export function AppUpdateButton({
       type="button"
       size="sm"
       variant="outline"
-      className="h-9 px-3"
+      className="relative h-8 min-w-[112px] overflow-hidden border-amber-400/70 bg-amber-300 px-2.5 text-amber-950 shadow-md shadow-amber-500/25 transition-all hover:-translate-y-0.5 hover:border-amber-500 hover:bg-amber-300 hover:shadow-lg hover:shadow-amber-500/35"
       title={
         updateState.version
           ? `Install MERU GST ${updateState.version}`
-          : undefined
+          : "Install update"
       }
       disabled={isDownloading || isInstalled}
       onClick={installUpdate}
     >
-      {isDownloading || isInstalled ? (
-        <RefreshCw className="size-4 animate-spin" aria-hidden="true" />
-      ) : (
-        <Download className="size-4" aria-hidden="true" />
-      )}
-      {label}
+      <span
+        className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-400 transition-[width] duration-75 ease-linear"
+        style={{ width: `${progress}%` }}
+        aria-hidden="true"
+      />
+      <span
+        className="app-update-button-shine"
+        aria-hidden="true"
+      />
+      <span className="absolute inset-0 bg-gradient-to-b from-white/45 via-white/10 to-amber-600/10" />
+      <span className="relative z-10 flex items-center gap-1.5 font-semibold uppercase text-sm">
+        {isDownloading || isInstalled ? (
+          <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+        ) : (
+          <Download className="size-3.5" aria-hidden="true" />
+        )}
+        {label}
+      </span>
     </Button>
   );
 }
