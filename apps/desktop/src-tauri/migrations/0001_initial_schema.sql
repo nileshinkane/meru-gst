@@ -18,6 +18,15 @@ CREATE TABLE companies (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE current_org (
+  id TEXT PRIMARY KEY NOT NULL CHECK (id = 'current'),
+  company_id TEXT REFERENCES companies(id) ON DELETE SET NULL,
+  org_owner_first_name TEXT NOT NULL DEFAULT '',
+  org_owner_last_name TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE transporters (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,

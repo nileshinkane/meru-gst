@@ -139,7 +139,7 @@ function ClipTabs({
       <div
         aria-hidden
         ref={containerRef}
-        className="pointer-events-none absolute inset-0 z-10 flex items-center gap-0 bg-black p-0.5 dark:bg-black"
+        className="pointer-events-none absolute inset-0 z-10 flex items-center gap-0 bg-primary p-0.5"
         style={{ transition: "clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1)" }}
       >
         <ul className="flex items-center gap-0">
@@ -151,7 +151,7 @@ function ClipTabs({
                   data-tab={tabValue}
                   onClick={() => handleValueChange(tabValue)}
                   className={cn(
-                    "flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium text-white",
+                    "flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium text-primary-foreground",
                     "focus-visible:outline-none",
                   )}
                   tabIndex={-1}
