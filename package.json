@@ -7,6 +7,7 @@
   "scripts": {
     "build": "pnpm --filter @meru/cli build",
     "build:desktop": "pnpm --filter @meru/desktop tauri:build",
+    "bump:desktop:patch": "node scripts/bump-desktop-version.mjs",
     "dev": "pnpm --filter @meru/cli dev",
     "dev:desktop": "pnpm --filter @meru/desktop tauri:dev",
     "dev:desktop:web": "pnpm --filter @meru/desktop dev",

@@ -51,12 +51,11 @@ export function InvoiceCreatePage() {
   const [invoiceTab, setInvoiceTab] = useState<InvoiceTab>("edit");
   const [invoice, setInvoice] = useState(createDefaultInvoice);
   const [characterSet, setCharacterSet] = useState<PrintCharacterSet>("box");
-  const [copies, setCopies] = useState(2);
 
   const totals = useMemo(() => calculateTotals(invoice), [invoice]);
   const printText = useMemo(
-    () => formatInvoiceDocument(invoice, { characterSet, copies }),
-    [characterSet, copies, invoice],
+    () => formatInvoiceDocument(invoice, { characterSet }),
+    [characterSet, invoice],
   );
 
   function updateInvoiceField(field: keyof Invoice, value: string) {
@@ -148,10 +147,8 @@ export function InvoiceCreatePage() {
       ) : (
         <InvoicePreview
           characterSet={characterSet}
-          copies={copies}
           printText={printText}
           setCharacterSet={setCharacterSet}
-          setCopies={setCopies}
           printInvoice={printInvoice}
         />
       )}
@@ -430,17 +427,13 @@ function InvoiceEditor({
 
 function InvoicePreview({
   characterSet,
-  copies,
   printText,
   setCharacterSet,
-  setCopies,
   printInvoice,
 }: {
   characterSet: PrintCharacterSet;
-  copies: number;
   printText: string;
   setCharacterSet: (characterSet: PrintCharacterSet) => void;
-  setCopies: (copies: number) => void;
   printInvoice: () => void;
 }) {
   return (
@@ -459,12 +452,6 @@ function InvoicePreview({
               onClick={() => setCharacterSet("ascii")}
             >
               ASCII safe
-            </SegmentedButton>
-            <SegmentedButton active={copies === 1} onClick={() => setCopies(1)}>
-              1 copy
-            </SegmentedButton>
-            <SegmentedButton active={copies === 2} onClick={() => setCopies(2)}>
-              2 copies
             </SegmentedButton>
           </div>
 
