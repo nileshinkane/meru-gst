@@ -3,6 +3,13 @@ dist/
 .DS_Store
 *.log
 
+# Local SQLite databases and sidecar files.
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
 # Private legacy and generated runtime data.
 legacy/
 db/
@@ -21,3 +28,8 @@ data/private/
 # Future fake fixtures for tests are allowed.
 !apps/cli/test/fixtures/
 !apps/cli/test/fixtures/**
+
+# Keep schema migrations in source control, but never commit seed/customer data.
+apps/desktop/src-tauri/migrations/*[Ss]eed*.sql
+apps/desktop/src-tauri/migrations/*[Dd]ata*.sql
+apps/desktop/src-tauri/migrations/*[Ss]ample*.sql

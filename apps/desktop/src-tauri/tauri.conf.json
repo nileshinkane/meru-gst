@@ -24,11 +24,7 @@
       "csp": null
     }
   },
-  "plugins": {
-    "sql": {
-      "preload": ["sqlite:meru-gst.db"]
-    }
-  },
+  "plugins": {},
   "bundle": {
     "active": true,
     "targets": "all",

@@ -102,6 +102,9 @@ importers:
       react:
         specifier: ^19.2.7
         version: 19.2.7
+      react-day-picker:
+        specifier: ^10.0.1
+        version: 10.0.1(@types/react@19.2.17)(react@19.2.7)
       react-dom:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
@@ -145,6 +148,9 @@ packages:
 
   '@cronvel/get-pixels@3.4.1':
     resolution: {integrity: sha512-gB5C5nDIacLUdsMuW8YsM9SzK3vaFANe4J11CVXpovpy7bZUGrcJKmc6m/0gWG789pKr6XSZY2aEetjFvSRw5g==}
+
+  '@date-fns/tz@1.5.0':
+    resolution: {integrity: sha512-lwYN/vDPeNRULcepoE/LO2Pgx+7/RV+S9ARfbc9lr2DtGkOD7pAiruHvbR1RX3Qyf6ja47EWJDMsNK5vK08DJg==}
 
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
@@ -1417,6 +1423,9 @@ packages:
   cwise-compiler@1.1.3:
     resolution: {integrity: sha512-WXlK/m+Di8DMMcCjcWr4i+XzcQra9eCdXIJrgh4TUgh0pIS/yJduLxS9JgefsHJ/YVLdgPtXm9r62W92MvanEQ==}
 
+  date-fns@4.4.0:
+    resolution: {integrity: sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w==}
+
   dbffile@1.12.0:
     resolution: {integrity: sha512-repLNtp1jyODRyAbqSaCiComsLi9/2w+ljYC760TXf69ExFVoJzdDr5STBx21gunM59RipYK5zHeDIuGf1LA8w==}
 
@@ -1623,6 +1632,16 @@ packages:
       '@types/react':
         optional: true
       '@types/react-dom':
+        optional: true
+
+  react-day-picker@10.0.1:
+    resolution: {integrity: sha512-eNh6BlwcYInWaJtRv18mXQ06Ys/H6rdTZAnTaSdOYJuTpwP1JMCHNd1FDRadA+gbeinq+psdULN5Xnowy9mV8w==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/react': '>=16.8.0'
+      react: '>=16.8.0'
+    peerDependenciesMeta:
+      '@types/react':
         optional: true
 
   react-dom@19.2.7:
@@ -1894,6 +1913,8 @@ snapshots:
       node-bitmap: 0.0.1
       omggif: 1.0.10
       pngjs: 6.0.0
+
+  '@date-fns/tz@1.5.0': {}
 
   '@emnapi/core@1.10.0':
     dependencies:
@@ -3070,6 +3091,8 @@ snapshots:
     dependencies:
       uniq: 1.0.1
 
+  date-fns@4.4.0: {}
+
   dbffile@1.12.0:
     dependencies:
       iconv-lite: 0.4.24
@@ -3302,6 +3325,14 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.17
       '@types/react-dom': 19.2.3(@types/react@19.2.17)
+
+  react-day-picker@10.0.1(@types/react@19.2.17)(react@19.2.7):
+    dependencies:
+      '@date-fns/tz': 1.5.0
+      date-fns: 4.4.0
+      react: 19.2.7
+    optionalDependencies:
+      '@types/react': 19.2.17
 
   react-dom@19.2.7(react@19.2.7):
     dependencies:

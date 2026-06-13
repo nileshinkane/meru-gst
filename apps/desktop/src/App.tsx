@@ -1,4 +1,5 @@
 import {
+  Calendar as CalendarIcon,
   Database,
   FileDown,
   FileText,
@@ -16,8 +17,15 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@meru/ui/components/button";
+import { Calendar } from "@meru/ui/components/calendar";
 import { ClipTabs } from "@meru/ui/components/clip-tabs";
 import { Input } from "@meru/ui/components/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@meru/ui/components/popover";
+import { cn } from "@meru/ui/lib/utils";
 
 import {
   calculateLineAmount,
@@ -28,6 +36,8 @@ import {
   type InvoiceLineItem,
   type PrintCharacterSet,
 } from "@/lib/invoice-format";
+import { CustomersPage, MedicinesPage } from "@/pages/master-data-pages";
+import { SettingsPage } from "@/pages/settings-page";
 
 type Page =
   | "home"
@@ -50,6 +60,9 @@ const numericLineFields = new Set<keyof InvoiceLineItem>([
   "freeQty",
   "rate",
 ]);
+const invoiceDatePattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+const invoiceDateStartMonth = new Date(2000, 0, 1);
+const invoiceDateEndMonth = new Date(2100, 11, 31);
 
 const navItems: Array<{
   page: Page;
@@ -220,9 +233,9 @@ function App() {
               onAction={openCreateInvoice}
             />
           ) : null}
-          {page === "customers" ? <EmptyPage title="Customers" /> : null}
-          {page === "medicines" ? <EmptyPage title="Medicines" /> : null}
-          {page === "settings" ? <EmptyPage title="Settings" /> : null}
+          {page === "customers" ? <CustomersPage /> : null}
+          {page === "medicines" ? <MedicinesPage /> : null}
+          {page === "settings" ? <SettingsPage /> : null}
         </div>
       </section>
     </main>
@@ -420,12 +433,12 @@ function InvoiceEditor({
           value={invoice.invoiceNumber}
           onChange={(value) => updateInvoiceField("invoiceNumber", value)}
         />
-        <Field
+        <DateField
           label="Date"
           value={invoice.invoiceDate}
           onChange={(value) => updateInvoiceField("invoiceDate", value)}
         />
-        <Field
+        <DateField
           label="Due Date"
           value={invoice.dueDate}
           onChange={(value) => updateInvoiceField("dueDate", value)}
@@ -722,6 +735,60 @@ function InvoicePreview({
   );
 }
 
+function DateField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedDate = parseInvoiceDate(value);
+
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            data-empty={!selectedDate}
+            className={cn(
+              "h-8 w-full justify-start rounded-md px-2 text-left font-normal",
+              !selectedDate && "text-muted-foreground",
+            )}
+          >
+            <CalendarIcon aria-hidden="true" />
+            {selectedDate ? value : "Select date"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            defaultMonth={selectedDate ?? new Date()}
+            startMonth={invoiceDateStartMonth}
+            endMonth={invoiceDateEndMonth}
+            captionLayout="dropdown"
+            navLayout="after"
+            onSelect={(date) => {
+              if (!date) {
+                return;
+              }
+
+              onChange(formatInvoiceDate(date));
+              setOpen(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </label>
+  );
+}
+
 function Field({
   label,
   value,
@@ -743,6 +810,36 @@ function Field({
       />
     </label>
   );
+}
+
+function parseInvoiceDate(value: string) {
+  const match = invoiceDatePattern.exec(value.trim());
+
+  if (!match) {
+    return undefined;
+  }
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const parsedDate = new Date(year, month - 1, day);
+
+  if (
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return undefined;
+  }
+
+  return parsedDate;
+}
+
+function formatInvoiceDate(date: Date) {
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+
+  return `${day}/${month}/${date.getFullYear()}`;
 }
 
 function Metric({
